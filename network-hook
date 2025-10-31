@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+# https://www.libvirt.org/hooks.html#network
+# Place this as /etc/libvirt/hooks/network
+
+import logging
+import sys
+from argparse import ArgumentParser
+from subprocess import CalledProcessError, check_output
+
+from xml.etree import ElementTree
+
+
+logger = logging.getLogger('network-hook')
+
+
+def read_xml(path: str) -> ElementTree.Element | None:
+    if path == '-':
+        root = ElementTree.fromstring(sys.stdin.read())
+        return root.find('network') if root else None
+    else:
+        with open(path) as f:
+            return ElementTree.parse(f).getroot()
+
+
+def handle_xml(xml: ElementTree.Element) -> None:
+    domain = xml.find('domain')
+    if domain is None:
+        logger.debug('No domain found')
+        return
+
+    domain_name = domain.attrib['name']
+    if domain_name is None:
+        logger.debug('No domain name found')
+        return
+
+    bridge = xml.find('bridge')
+    if bridge is None:
+        logger.debug('No bridge found')
+        return
+
+    interface = bridge.attrib['name']
+    if interface is None:
+        logger.debug('No interface found')
+        return
+
+    ip = xml.find('ip')
+    if ip is None:
+        logger.debug('No ip found')
+        return
+
+    ip_address = ip.attrib['address']
+    if ip_address is None:
+        logger.debug('No address found')
+        return
+
+    set_resolver(interface, ip_address, domain_name)
+
+
+def set_resolver(interface: str, ip: str, domain: str) -> None:
+    logger.info('Setting resolver on %s to %s with %s', interface, ip, domain)
+
+    try:
+        check_output(['resolvectl', 'dns', interface, ip])
+    except CalledProcessError:
+        logger.exception('Failed to set DNS resolver on interface %s to %s', interface, ip)
+
+    try:
+        check_output(['resolvectl', 'domain', interface, domain])
+    except CalledProcessError:
+        logger.exception('Failed to set DNS domain on interface %s to %s', interface, domain)
+
+
+def main():
+    logging.basicConfig(level=logging.DEBUG)
+
+    parser = ArgumentParser()
+    parser.add_argument('network_name')
+    parser.add_argument('action')
+    parser.add_argument('phase')
+    parser.add_argument('xml')
+
+    args = parser.parse_args()
+    if args.action == 'started':
+        try:
+            xml = read_xml(args.xml)
+        except Exception:
+            logger.exception('Failed to read XML from %s', args.xml)
+            raise
+        if xml is not None:
+            handle_xml(xml)
+        else:
+            logger.error('No network found')
+
+
+if __name__ == '__main__':
+    main()

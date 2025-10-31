@@ -1,9 +1,19 @@
 ---
 name: "Set up Vagrant"
 description: "Set up Vagrant with Libvirt on GitHub Actions"
+inputs:
+  configure_dns:
+    description: 'Set up a libvirt networking hook to configure systemd-resolved'
+    required: false
+    type: boolean
 runs:
   using: "composite"
   steps:
+    - name: 'Install libvirt network hook'
+      if: ${{ inputs.configure_dns }}
+      shell: bash
+      run: |
+        sudo install -D -m 0755 ${{ github.action_path }}/network-hook /etc/libvirt/hooks/network
     - id: script
       shell: bash
       run: |
