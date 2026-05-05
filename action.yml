@@ -19,7 +19,8 @@ runs:
       run: |
         . /etc/os-release
         if [ "${VERSION_ID}" != "22.04" ]; then
-          sudo add-apt-repository --yes ppa:evgeni/vagrant
+          sudo curl --output /etc/apt/keyrings/evgeni-vagrant-noble.gpg https://people.debian.org/~evgeni/vagrant-noble/evgeni.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/evgeni-vagrant-noble.gpg] https://people.debian.org/~evgeni/vagrant-noble/ ./" | sudo tee /etc/apt/sources.list.d/evgeni-vagrant-noble.list
         fi
         echo "man-db man-db/auto-update boolean false" | sudo debconf-set-selections
         sudo dpkg-reconfigure man-db
