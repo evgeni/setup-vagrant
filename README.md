@@ -12,6 +12,6 @@ jobs:
     name: "Run Vagrant-based tests"
     runs-on: ubuntu-latest
     steps:
-      - uses: evgeni/setup-vagrant@v0
+      - uses: voxpupuli/setup-vagrant@v0
       - …
 ```
